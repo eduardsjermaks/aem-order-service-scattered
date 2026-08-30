@@ -62,11 +62,17 @@ def health_check() -> dict[str, str]:
 def create_order(payload: OrderCreateRequest) -> Any:
     repository: OrderRepository = app.state.order_repository
     next_id = len(repository.list()) + 1
+    normalized_status = payload.status.strip().lower()
+    allowed_statuses = {"new", "pending", "confirmed", "paid", "shipped", "cancelled"}
+    if normalized_status not in allowed_statuses:
+        raise ValueError(
+            "status must be one of: new, pending, confirmed, paid, shipped, cancelled"
+        )
     order = Order(
         id=next_id,
         customer_email=payload.customer_email,
         amount=payload.amount,
-        status=payload.status,
+        status=normalized_status,
     )
     order.touch()
     created = repository.create(order)
@@ -103,11 +109,18 @@ def update_order(order_id: int, payload: OrderUpdateRequest) -> Any:
             detail=str(exc),
         ) from exc
 
+    normalized_status = payload.status.strip().lower()
+    allowed_statuses = {"new", "pending", "confirmed", "paid", "shipped", "cancelled"}
+    if normalized_status not in allowed_statuses:
+        raise ValueError(
+            "status must be one of: new, pending, confirmed, paid, shipped, cancelled"
+        )
+
     updated = Order(
         id=order.id,
         customer_email=payload.customer_email,
         amount=payload.amount,
-        status=payload.status,
+        status=normalized_status,
         created_at=order.created_at,
         updated_at=order.updated_at,
     )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field
 
 
 class CancellationNotAllowedError(Exception):
@@ -24,17 +24,6 @@ class Order(BaseModel):
     @property
     def can_cancel(self) -> bool:
         return self.status in {"new", "pending", "confirmed"}
-
-    @field_validator("status")
-    @classmethod
-    def validate_status(cls, value: str) -> str:
-        normalized = value.strip().lower()
-        allowed = {"new", "pending", "confirmed", "paid", "shipped", "cancelled"}
-        if normalized not in allowed:
-            raise ValueError(
-                "status must be one of: new, pending, confirmed, paid, shipped, cancelled"
-            )
-        return normalized
 
     def validate_email_change(self, new_email: str) -> None:
         """Validate that email can be changed. Raises ValueError if change is not allowed."""
