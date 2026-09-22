@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, status
@@ -10,6 +11,8 @@ from app.repository import OrderRepository
 
 app = FastAPI(title="AEM Order Service")
 app.state.order_repository = OrderRepository()
+app.state.audit_records = []
+app.state.notifications = []
 
 
 class OrderCreateRequest(BaseModel):
@@ -30,6 +33,20 @@ class OrderResponse(BaseModel):
     amount: float
     status: str
     created_at: str
+
+
+class AuditRecordResponse(BaseModel):
+    order_id: int
+    action: str
+    at: str
+
+
+class NotificationResponse(BaseModel):
+    order_id: int
+    type: str
+    recipient: EmailStr
+    message: str
+    at: str
 
 
 def get_order_or_404(repository: OrderRepository, order_id: int) -> Order:
@@ -160,6 +177,19 @@ def cancel_order(order_id: int) -> Any:
 
     order.touch()
     repository.update(order_id, order)
+    occurred_at = datetime.now(timezone.utc).isoformat()
+    app.state.audit_records.append(
+        {"order_id": order.id, "action": "order_cancelled", "at": occurred_at}
+    )
+    app.state.notifications.append(
+        {
+            "order_id": order.id,
+            "type": "order_cancelled",
+            "recipient": str(order.customer_email),
+            "message": f"Order {order.id} was cancelled",
+            "at": occurred_at,
+        }
+    )
     return OrderResponse(
         id=order.id,
         customer_email=order.customer_email,
@@ -167,3 +197,25 @@ def cancel_order(order_id: int) -> Any:
         status=order.status,
         created_at=order.created_at.isoformat(),
     )
+
+
+@app.get("/orders/{order_id}/audit-records", response_model=list[AuditRecordResponse])
+def list_audit_records(order_id: int) -> list[AuditRecordResponse]:
+    repository: OrderRepository = app.state.order_repository
+    get_order_or_404(repository, order_id)
+    return [
+        AuditRecordResponse(**record)
+        for record in app.state.audit_records
+        if record["order_id"] == order_id
+    ]
+
+
+@app.get("/orders/{order_id}/notifications", response_model=list[NotificationResponse])
+def list_notifications(order_id: int) -> list[NotificationResponse]:
+    repository: OrderRepository = app.state.order_repository
+    get_order_or_404(repository, order_id)
+    return [
+        NotificationResponse(**notification)
+        for notification in app.state.notifications
+        if notification["order_id"] == order_id
+    ]
