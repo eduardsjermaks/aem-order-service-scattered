@@ -69,10 +69,19 @@ def create_order(payload: OrderCreateRequest) -> Any:
     repository: OrderRepository = app.state.order_repository
     next_id = len(repository.list()) + 1
     normalized_status = payload.status.strip().lower()
-    allowed_statuses = {"new", "pending", "confirmed", "paid", "shipped", "cancelled"}
+    allowed_statuses = {
+        "new",
+        "pending",
+        "confirmed",
+        "paid",
+        "shipped",
+        "cancelled",
+        "refunded",
+    }
     if normalized_status not in allowed_statuses:
         raise ValueError(
-            "status must be one of: new, pending, confirmed, paid, shipped, cancelled"
+            "status must be one of: new, pending, confirmed, paid, shipped, cancelled, "
+            "refunded"
         )
     order = Order(
         id=next_id,
@@ -137,10 +146,19 @@ def update_order(order_id: int, payload: OrderUpdateRequest) -> Any:
         ) from exc
 
     normalized_status = payload.status.strip().lower()
-    allowed_statuses = {"new", "pending", "confirmed", "paid", "shipped", "cancelled"}
+    allowed_statuses = {
+        "new",
+        "pending",
+        "confirmed",
+        "paid",
+        "shipped",
+        "cancelled",
+        "refunded",
+    }
     if normalized_status not in allowed_statuses:
         raise ValueError(
-            "status must be one of: new, pending, confirmed, paid, shipped, cancelled"
+            "status must be one of: new, pending, confirmed, paid, shipped, cancelled, "
+            "refunded"
         )
 
     updated = Order(
