@@ -297,3 +297,42 @@ def test_update_order_cannot_change_email_after_confirmation() -> None:
     assert response.json() == {
         "detail": "customer_email cannot be changed after an order is confirmed"
     }
+
+
+def test_create_order_accepts_refunded_status() -> None:
+    response = client.post(
+        "/orders",
+        json={
+            "customer_email": "customer@example.com",
+            "amount": 49.99,
+            "status": "  Refunded  ",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["status"] == "refunded"
+
+
+def test_update_order_accepts_refunded_status() -> None:
+    create_response = client.post(
+        "/orders",
+        json={
+            "customer_email": "customer@example.com",
+            "amount": 49.99,
+            "status": "paid",
+        },
+    )
+    order_id = create_response.json()["id"]
+
+    response = client.put(
+        f"/orders/{order_id}",
+        json={
+            "customer_email": "customer@example.com",
+            "amount": 49.99,
+            "status": " REFUNDED ",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "refunded"
+    assert client.get(f"/orders/{order_id}").json()["status"] == "refunded"
